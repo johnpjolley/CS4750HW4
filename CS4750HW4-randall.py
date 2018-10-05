@@ -1,106 +1,386 @@
-#https://codereview.stackexchange.com/questions/149363/minimax-tic-tac-toe-implementation
-#http://www.giocc.com/concise-implementation-of-minimax-through-higher-order-functions.html
-from operator import itemgetter
+from threading import Thread
+import numpy as np
+import time
 
-class GameState:
-    def __init__(self,board):
-        self.board = board
+#infinite = float("inf")
+#negative_infinite = float("-inf")
 
-    #need function to determine if there is a winner
-        
-    def get_score(self,moves,turn): #implements the evaluation function on the game state and returns the h(n) value. Function is incomplete
-        if(len(moves) > 33): #determines if there are two or less pieces on board, no h(n) value in this case
-            return 0 #may need to change
-        xs = self.get_X_positions() #get positions on board of all the X's and put them in a list
-        os = self.get_O_positions() #get positions on board of all the O's and put them in a list
 
-    def break_tie(move, best_move): #if two positions have the same h(n) value, this determines which position to take
-        priority = [14,15,20,21,7,8,9,10,13,16,19,22,25,26,27,28,0,1,2,3,4,5,6,11,12,17,18,23,24,29,30,31,32,33,34,35] #positions near middle get priority
-        move_index = priority.index(move)
-        best_move_index = priority.index(best_move)
-        if(move_index < best_move_index): #determine which one is closer to the middle/higher priority
-            return move_index
+
+def create_board(dimension):
+    x = np.zeros(np.square(dimension), dtype=int)
+    return x.reshape((dimension, dimension))
+
+
+def game():
+        startTime0 = time.time()
+        players = np.array([[1, 2], [2, 4]])
+
+        turn = 0
+        board = create_board(6)
+
+        while not checkMATE(board):
+            temptime1 = time.time()
+            turn = turn % 2
+            board = ABprune(board, players[turn][0], players[turn][1])
+            turn = turn +1
+            temptime2 = time.time()
+            print("this turn took " + str(round(temptime2 - temptime1,4)) + "sec to finish")
+        print('')
+        print("End State:")
+        print("##")
+        print(board)
+        whoWon = choose(board, players[0][0])
+        elapsedTime0 = time.time() - startTime0
+
+        if whoWon > 0:
+            print('')
+            print(' Results: ')
+            print('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^')
+            print("Player {0} wins!".format(players[0][0]))
+            print("Time Elapsed: {:.3f} secs".format(elapsedTime0))
         else:
-            return best_move_index
+            print('')
+            print(' Results:')
+            print('IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII')
+            print("Player {0} wins!".format(players[1][0]))
+            print("Time Elapsed: {:.3f} secs".format(elapsedTime0))
 
-    def get_X_positions(self): #find all positions on the board filled in with an 'X'
-        xs = []
-        for index, xs in enumerate(self.board):
-            if(xs == 'X'):
-                xs.append(index)
-        return xs
 
-    def get_O_positions(self): #find all positions on the board filled in with an 'O'
-        os = []
-        for index, os in enumerate(self.board):
-            if(os == 'X'):
-                os.append(index)
-        return os
+def copy(board):
+    return np.array(board)
 
-    def get_available_moves(self): #find all positions on the board  that have not been filled, have '_'
-        squares = []
-        for index, square in enumerate(self.board):
-            if(square != 'X' and square != 'O'):
-                squares.append(index)
-        return squares
 
-    def next_state(self,move,turn): #make the move at the position by placing the appropriate character in the move/position specified. Place 'X' if turn is 1 (for player 1) and 'O' if player 2 (turn should be 2)
-        copy = self.board[:]
-        copy[move] = 'X' if turn == 1 else 'O'
-        return GameState(copy)
+def ABprune(state, player, max_depth):
+    actions, states = actionStateDecider(state, player)
+    size = len(actions)
+    board = copy(state)
+    if size == 36:
+        row = 2 + (np.random.random_integers(100) % 2)
+        col = 2 + (np.random.random_integers(100) % 2)
+        board = copy(state)
+        board[row][col] = player
+        #print(board)
+        print("------")
+        return board
+    elif size == 0:
+        print("tie!")
+        return board
+    threads = [None] * size
+    results = np.zeros(size, dtype=int)
 
-def minimax(game_state,player): #similar to the link, see it
-        moves = game_state.get_available_moves()
-        best_move = moves[0]
-        best_score = float('-inf')
-        for move in moves:
-            clone = game_state.next_state(move, player)
-            score = min_play(clone)
-            score = get_score(clone)
-            if(score > best_score):
-                best_move = move
-                best_score = score
-            elif(score == best_score):
-                best_move = break_tie(move, best_move)
-        return best_move, best_score
+    for i in range(len(threads)):
+        threads[i] = Thread(
+            target=fillPositions, args=(states[i], player, max_depth, results, i))
+        threads[i].start()
 
-def min_play(game_state,player):
-    if game_state.is_gameover():
-        return evaluate(game_state)
-    moves = game_state.get_available_moves()
-    best_score = float('inf')
-    for move in moves:
-        clone = game_state.next_state(move, player)
-        score = max_play(clone)
-        score = get_score(clone)
-        if score < best_score:
-            best_move = move
-            best_score = score
-        elif(score == best_score):
-                best_move = break_tie(move, best_move)
-    return best_score
 
-def max_play(game_state,player):
-    if game_state.is_gameover():
-        return evaluate(game_state)
-    moves = game_state.get_available_moves()
-    best_score = float('-inf')
-    for move in moves:
-        clone = game_state.next_state(move, player)
-        score = min_play(clone)
-        score = get_score(clone)
-        if(score > best_score):
-            best_move = move
-            best_score = score
-        elif(score == best_score):
-                best_move = break_tie(move, best_move)
-    return best_score
+    for i in range(len(threads)):
+        threads[i].join()
+    print("||||||||||||||||||||||||||||")
+    print("Player " + str(player))
+    
+    print(board)
+    max = np.argmax(results)
 
-start_game_state = GameState(['_','_','_','_','_','_','_','_','_','_','_','_','_','_','_','_','_','_','_','_','_','_','_','_','_','_','_','_','_','_','_','_','_','_','_','_'])
+    return states[max]
 
-#go through back and forth in a while loop until there is a victor
-move, heuristic = minimax(start_game_state, 1) #one call to minimax returns the move that has been made after the minimax simulation/run
-move, heuristic = minimax(start_game_state, 2)
 
-#minimax, min_play, and max_play need to be adjusted so that player 1 looks 2 moves deep and player 2 looks 4 moves deep
-#need to print out the resulting Game State after each move is decided
+def fillPositions(state, player, max_depth, results, index):
+    depth = 0
+    results[index] = min_value(state, player, 9999999, -9999999, depth,max_depth)
+
+
+def max_value(state, player, alpha, beta, depth, max_depth):
+   
+    newDepth = depth + 1
+    
+    if cutoff_test(state, depth, max_depth):
+        return choose(state, player)
+    v = -9999999
+    a, s = actionStateDecider(state, player)
+    for i in range(len(a)):
+        v = max(v, min_value(s[i], player, alpha, beta, newDepth, max_depth))
+        if v >= beta:
+            return v
+        alpha = max(alpha, v)
+    return v
+
+
+def min_value(state, player, alpha, beta, depth, max_depth):
+
+    newDepth = depth + 1
+    
+    alpha = 0 
+    beta = 0 
+    if cutoff_test(state, depth, max_depth):
+        return choose(state, player)
+    v = 9999999
+    a, s = actionStateDecider(state, player)
+    for i in range(len(a)):
+        v = min(v, max_value(s[i], player, alpha, beta, newDepth, max_depth))
+        if v >= alpha:
+            return v
+        beta = max(beta, v)
+    return v
+
+
+def checkMATE(state):
+    result = choose(state, 1)
+    if 5000 <= result or -5000 >= result:
+        return True
+    else:
+        return False
+
+
+def cutoff_test(state, depth, max_depth):
+    if depth >= max_depth or checkMATE(state):
+        return True
+    else:
+        return False
+
+
+def actionStateDecider(board, player):
+    flag = 0
+    for row in range(6):
+        for col in range(6):
+            if board[row][col] == 0:
+                action = np.array([row, col])
+                copiedBoard = copy(board)
+                copiedBoard[row][col] = player
+                state = copiedBoard
+                if flag == 0:  
+                    states = np.array([state])
+                    actions = np.array([action])
+                    flag = 1
+                else:  
+                    states = np.append(states, [state], axis=0)
+                    actions = np.append(actions, [action], axis=0)
+    if flag == 0:
+        return np.array([]), np.array([])
+    return actions, states
+
+
+def score_line(line_number, line_length, open_sides, player):
+    if line_length == 4:
+        if line_number != player:
+            return -999999
+        else:
+            return 999999
+    if open_sides == 0:
+        return 0
+    else:
+        if line_length == 3:
+            if open_sides == 2:
+                if line_number != player:
+                    return -10
+                else:
+                    return 5
+            elif open_sides == 1:
+                if line_number != player:
+                    return -6
+                else:
+                    return 3
+            else:
+                exit("ERROR")
+        elif line_length == 2:
+            if line_number != player:
+                return -1
+            else:
+                return 1
+        else:
+            return 0
+
+
+def coordCheck(x, y):
+    if x > 5:
+        return False
+    if x < 0:
+        return False
+    if y > 5:
+        return False
+    if y < 0:
+        return False
+    return True
+
+
+def choose(state, player):
+    eval_score = 0
+    for x in range(6):
+        line_number = -1
+        next_line_number = -1
+        line_length = 0
+        next_line_length = 0
+        open_sides = 0
+        end_line_flag = False
+        for y in range(6):
+            line_number = next_line_number
+            line_length += next_line_length
+            next_line_length = 0
+            if state[x][y] != line_number:
+                if line_number == -1:
+                    line_length = 1
+                    next_line_number = state[x][y]
+                elif line_number == 0:
+                    open_sides += 1
+                    line_length = 1
+                    next_line_number = state[x][y]
+                else:
+                    end_line_flag = True
+                    if state[x][y] == 0:
+                        open_sides += 1
+                    else:
+                        next_line_length = 1
+                    next_line_number = state[x][y]
+            else:
+                if line_number != 0:
+                    line_length += 1
+            if y == 5:
+                end_line_flag = True
+            if end_line_flag:
+                if line_length == 1:
+                    end_line_flag = False
+                    line_length = 0
+                    open_sides = 0
+                else:
+                    eval_score += score_line(line_number, line_length,
+                                             open_sides, player)
+                    end_line_flag = False
+                    line_length = 0
+                    open_sides = 0
+    for y in range(6):
+        line_number = -1
+        next_line_number = -1
+        line_length = 0
+        next_line_length = 0
+        open_sides = 0
+        end_line_flag = False
+        for x in range(6):
+            line_number = next_line_number
+            line_length += next_line_length
+            next_line_length = 0
+            if state[x][y] != line_number:
+                if line_number == -1:
+                    line_length = 1
+                    next_line_number = state[x][y]
+                elif line_number == 0:
+                    open_sides += 1
+                    line_length = 1
+                    next_line_number = state[x][y]
+                else:
+                    end_line_flag = True
+                    if state[x][y] == 0:
+                        open_sides += 1
+                    else:
+                        next_line_length = 1
+                    next_line_number = state[x][y]
+            else:
+                if line_number != 0:
+                    line_length += 1
+            if y == 5:
+                end_line_flag = True
+            if end_line_flag:
+                if line_length == 1:
+                    end_line_flag = False
+                    line_length = 0
+                    open_sides = 0
+                else:
+                    eval_score += score_line(line_number, line_length,
+                                             open_sides, player)
+                    end_line_flag = False
+                    line_length = 0
+                    open_sides = 0
+    for x_start in range(-3, 4, 1):
+        x_offset = 0
+        line_number = -1
+        next_line_number = -1
+        line_length = 0
+        next_line_length = 0
+        open_sides = 0
+        end_line_flag = False
+        for y in range(6):
+            x = x_start + x_offset
+            if coordCheck(x, y):
+                line_number = next_line_number
+                line_length += next_line_length
+                next_line_length = 0
+                if state[x][y] != line_number:
+                    if line_number == -1:
+                        line_length = 1
+                        next_line_number = state[x][y]
+                    elif line_number == 0:
+                        open_sides += 1
+                        line_length = 1
+                        next_line_number = state[x][y]
+                    else:
+                        end_line_flag = True
+                        if state[x][y] == 0:
+                            open_sides += 1
+                        else:
+                            next_line_length = 1
+                        next_line_number = state[x][y]
+                else:
+                    if line_number != 0 and line_number != -1:
+                        line_length += 1
+                if y == 5:
+                    end_line_flag = True
+                if end_line_flag:
+                    if line_length == 1:
+                        end_line_flag = False
+                        line_length = 0
+                        open_sides = 0
+                    else:
+                        eval_score += score_line(line_number, line_length,
+                                                 open_sides, player)
+                        end_line_flag = False
+                        line_length = 0
+                        open_sides = 0
+            x_offset += 1
+    for x_start in range(2, 8, 1):
+        x_offset = 0
+        line_number = -1
+        next_line_number = -1
+        line_length = 0
+        next_line_length = 0
+        open_sides = 0
+        end_line_flag = False
+        for y in range(6):
+            x = x_start + x_offset
+            if coordCheck(x, y):
+                line_number = next_line_number
+                line_length += next_line_length
+                next_line_length = 0
+                if state[x][y] != line_number:
+                    if line_number == -1:
+                        line_length = 1
+                        next_line_number = state[x][y]
+                    elif line_number == 0:
+                        open_sides += 1
+                        line_length = 1
+                        next_line_number = state[x][y]
+                    else:
+                        end_line_flag = True
+                        if state[x][y] == 0:
+                            open_sides += 1
+                        else:
+                            next_line_length = 1
+                        next_line_number = state[x][y]
+                else:
+                    if line_number != 0 and line_number != -1:
+                        line_length += 1
+                if y == 5:
+                    end_line_flag = True
+                if end_line_flag:
+                    if line_length == 1:
+                        end_line_flag = False
+                        line_length = 0
+                        open_sides = 0
+                    else:
+                        eval_score += score_line(line_number, line_length,
+                                                 open_sides, player)
+                        end_line_flag = False
+                        line_length = 0
+                        open_sides = 0
+            x_offset -= 1
+    return eval_score
+game()
