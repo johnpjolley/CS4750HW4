@@ -40,7 +40,7 @@ def forwardchecking(variables, number, clauses, numClauses, zeroValues, oneValue
     variable = variables[number] #get variable object
     zeroSatasfied = zeroValues[number]
     oneSatasfied = oneValues[number]
-    if (number != 1):
+    if (number != 0):
         last = master[number - 1]
     else:
         last = [False] * numClauses
@@ -64,13 +64,13 @@ def forwardchecking(variables, number, clauses, numClauses, zeroValues, oneValue
             latest[i] = zeroSatasfied[i] or last[i]
         else:
             latest[i] = oneSatasfied[i] or last[i]
-    master = master.append(latest)
+    master.append(latest)
     variables[number] = variable
     if(False in latest):
         nodes = nodes + 1
-        master = forwardchecking(variables, number + 1, clauses, numClauses, zeroValues, oneValues, master, nodes)
+        return nodes, variables, master
     else:
-        return nodes, variables
+        return nodes, variables, master
     
 def readInput():
     #https://www.pythonforbeginners.com/dictionary/python-split
@@ -118,7 +118,7 @@ for i in range(numVars):
     variableHolder.append(variable)
     
 for number in range(numVars):
-    nodes, variableHolder = forwardchecking(variableHolder, number + 1, clauses, numClauses, zeroValues, oneValues, master, nodes)
+    nodes, variableHolder, master = forwardchecking(variableHolder, number, clauses, numClauses, zeroValues, oneValues, master, nodes)
     
 print(nodes)    
 for j in range(numVars):
