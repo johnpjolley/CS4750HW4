@@ -50,13 +50,16 @@ def forwardchecking(variables, number, clauses, numClauses, zeroValues, oneValue
     elif(variable.getDomain() == 1):
         varVal = 1
     else:
-        backtracking(variables, number)
+        variables, number = backtracking(variables, number)
+        forwardchecking(variables, number, clauses, numClauses, zeroValues, oneValues, master, nodes)
+        return nodes, variables, master
     for i in range(numClauses):
         clause = clauses[i]
-        for j in range(3):
+        length = len(clause)
+        for j in range(length - 1):
             if ((number / clause[j]) == 1 or (number / clause[j]) == -1):
-                clause[3] = clause[3] + 1
-        if (clause[3] == 3):
+                clause[length - 1] = clause[length - 1] + 1
+        if (clause[length - 1] == length - 1):
             variables, number = backtracking(variables, number)
             forwardchecking(variables, number, clauses, numClauses, zeroValues, oneValues, master, nodes)
             break
@@ -74,7 +77,7 @@ def forwardchecking(variables, number, clauses, numClauses, zeroValues, oneValue
     
 def readInput():
     #https://www.pythonforbeginners.com/dictionary/python-split
-    f = open('example1.txt', 'r')
+    f = open('example4.txt', 'r')
     line = f.readline()
     line.split()
     a,b,numVars,numClauses = line.split()
@@ -93,7 +96,8 @@ def setVariable(number, numClauses, clauses, zeroValues, oneValues):
     negNumber = number * -1
     index = 0 #indexes go from 0 to numVariables - 1
     for clause in clauses:
-        for i in range(3):
+        length = len(clause)
+        for i in range(length - 1):
             if (number / clause[i]) == 1:
                 oneResults[index] = True #setting the variable to one makes this clause true
             elif (negNumber / clause[i]) == 1:
